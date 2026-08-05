@@ -4,43 +4,75 @@ Generador de restricciones a partir del perfil.
 Responsabilidad única: traducir un PerfilInversor en la lista de
 restricciones que consume el optimizador.
 
-Este módulo es código PURO y determinista, sin IA: las reglas que
-asignan restricciones a cada perfil son política de negocio explícita
-y auditable, no interpretación difusa. Un regulador debe poder leer
-estas reglas y entender exactamente por qué un conservador recibe la
-cartera que recibe.
+Este módulo es código PURO y determinista, sin IA. Las restricciones se
+definen por CLASE DE ACTIVO (renta variable, bonos, oro), no agrupando
+activos defensivos en un cajón común. Esto evita que un perfil que pide
+estabilidad acabe sin bonos porque el oro cubrió por sí solo el mínimo
+defensivo: cada clase tiene su propio suelo y techo.
 """
 
 from typing import Callable
 
 from agents.perfil import PerfilInversor, NivelRiesgo
 
+class ClaseActivo:
+    """
+    Clases de activos reconocidas por el sistema
+    """
+    RENTA_VARIABLE = "renta_variable"
+    BONOS = "bonos"
+    ORO = "oro"
+    
+
+
+# Mapa de cada ticker a su clase de activo.
+# En el sistema completo esto lo proporciona el agente de universo.
+CLASIFICACION_ACTIVOS = {
+    "SPY": ClaseActivo.RENTA_VARIABLE,
+    "EEM": ClaseActivo.RENTA_VARIABLE,
+    "AGG": ClaseActivo.BONOS,
+    "ORO": ClaseActivo.ORO
+}
+
+
 # Reglas por nivel de riesgo. Cada perfil define límites mínimos de
 # activos "refugio" (bonos, oro) y máximos de activos de riesgo.
 # Estos valores son decisiones de negocio documentadas en la memoria.
 _REGLAS_RIESGO = {
     NivelRiesgo.CONSERVADOR: {
-        "min_refugio": 0.50,    # al menos 50% en activos refugio
-        "max_por_activo": 0.35  # ningún activo domina
+        ClaseActivo.RENTA_VARIABLE: (0.10, 0.40),
+        ClaseActivo.BONOS: (0.30, 0.60),
+        ClaseActivo.ORO: (0.05, 0.25)
     },
     NivelRiesgo.MODERADO: {
-        "min_refugio": 0.25,
-        "max_por_activo": 0.45
+        ClaseActivo.RENTA_VARIABLE: (0.30, 0.65),
+        ClaseActivo.BONOS: (0.15, 0.40),
+        ClaseActivo.ORO: (0.05, 0.25)
     },
     NivelRiesgo.AGRESIVO: {
-        "min_refugio": 0.05,
-        "max_por_activo": 0.60
+        ClaseActivo.RENTA_VARIABLE: (0.50, 0.85),
+        ClaseActivo.BONOS: (0.00, 0.25),
+        ClaseActivo.ORO: (0.00, 0.20)
     }
 }
 
-# Qué activos se considern "refugio" (defensivos).
-_ACTIVOS_REFUGIO = {"AGG", "GLD"}
+
+def _indices_por_clase(activos: list[str], clase: str) -> list[int]:
+    """
+    Devuelve los índices de los actives que pertenecen a una clase.
+    """
+    return[i for i, activo in enumerate(activos) if CLASIFICACION_ACTIVOS.get(activo) == clase]
 
 
 def generar_restricciones(perfil: PerfilInversor, activos: list[str]) -> list[Callable]:
     """
     Genera las restricciones del optimizador a partir del perfil.
 
+    Para cada clase de activo presente en el universo, impone un mínimo y
+    un máximo agregado según el nivel de riesgo del perfil. Así se garantiza
+    que cada clase (bonos, renta variable, oro) tenga la presencia que el
+    perfil requiere, sin que una clase supla a otra.
+    
     Parameters
     ----------
     perfil : PerfilInversor
@@ -58,20 +90,17 @@ def generar_restricciones(perfil: PerfilInversor, activos: list[str]) -> list[Ca
     reglas = _REGLAS_RIESGO[perfil.nivel_riesgo]
     restricciones = []
     
-    # 1. Tope máximo por activo (evita concentración)
-    max_activo = reglas["max_por_activo"]
-    restricciones.append(lambda w: w <= max_activo)
-    
-    # 2. Mínimo agregado en activos refugio.
-    #   Localizamos los índices de los activos refugio presentes.
-    indices_refugio = [
-        i for i, activo in enumerate(activos) if activo in _ACTIVOS_REFUGIO
-    ]
-    
-    if indices_refugio:
-        min_refugio = reglas["min_refugio"]
-        # La suma de los pesos refugio debe superar el mínimo.
-        restricciones.append(
-            lambda w: sum(w[i] for i in indices_refugio) >= min_refugio
-        )
+    for clase, (minimo, maximo) in reglas.items():
+        indices = _indices_por_clase(activos, clase)
+        
+        if not indices:
+            continue  # esa clave no estña en el universo, se omite
+        
+        # Mínimo agregado de la clase (si es > 0)
+        if minimo > 0:
+            restricciones.append(lambda w, idx=indices, m=minimo: sum(w[i] for i in idx) >= m)
+            
+        # Máximo agregado de la clase 
+        restricciones.append(lambda w, idx=indices, M=maximo: sum(w[i] for i in idx) <= M)
+
     return restricciones

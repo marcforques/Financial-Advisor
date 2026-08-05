@@ -63,25 +63,26 @@ def test_conservador_exige_mas_refugio_que_agresivo():
     assert refugio_agr < 0.50
     
 
-def test_tope_por_activo_decrece_con_conservadurismo():
+def test_conservador_limita_mas_renta_variable():
     """
-    El tope máximo por activo del conservador debe ser menor o igual
-    que el del agresivo (el conservador diversifica más).
+    El conservador debe permitir MENOS renta variable que el agresivo.
     """
-    max_cons = _REGLAS_RIESGO[NivelRiesgo.CONSERVADOR]["max_por_activo"]
-    max_agr = _REGLAS_RIESGO[NivelRiesgo.AGRESIVO]["max_por_activo"]
-    
-    assert max_cons <= max_agr
+    from agents.restricciones import _REGLAS_RIESGO, ClaseActivo
+
+    max_rv_cons = _REGLAS_RIESGO[NivelRiesgo.CONSERVADOR][ClaseActivo.RENTA_VARIABLE][1]
+    max_rv_agr = _REGLAS_RIESGO[NivelRiesgo.AGRESIVO][ClaseActivo.RENTA_VARIABLE][1]
+
+    assert max_rv_cons < max_rv_agr
 
 
-def test_min_refugio_decrece_con_riesgo():
+def test_min_bonos_decrece_con_riesgo():
     """
-    El mínimo de refugio debe decrecer: conservador > moderado > agresivo.
-    """  
-    
-    cons = _REGLAS_RIESGO[NivelRiesgo.CONSERVADOR]["min_refugio"]
-    mod = _REGLAS_RIESGO[NivelRiesgo.MODERADO]["min_refugio"]
-    agr = _REGLAS_RIESGO[NivelRiesgo.AGRESIVO]["min_refugio"]
-    
-    assert cons > mod > agr
+    El mínimo de bonos debe decrecer: conservador > moderado >= agresivo.
+    """
+    from agents.restricciones import _REGLAS_RIESGO, ClaseActivo
 
+    min_cons = _REGLAS_RIESGO[NivelRiesgo.CONSERVADOR][ClaseActivo.BONOS][0]
+    min_mod = _REGLAS_RIESGO[NivelRiesgo.MODERADO][ClaseActivo.BONOS][0]
+    min_agr = _REGLAS_RIESGO[NivelRiesgo.AGRESIVO][ClaseActivo.BONOS][0]
+
+    assert min_cons > min_mod >= min_agr
