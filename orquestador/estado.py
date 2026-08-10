@@ -45,3 +45,5 @@ class PortfolioState(TypedDict):
     # --- Campo de control para las aristas condicionales ---
     perfil_valido: bool
     
+    # --- Mensaje de error para el usuario (si el flujo se corta) ---
+    mensaje_error: Optional[str]

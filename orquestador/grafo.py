@@ -14,7 +14,7 @@ from functools import partial
 from langgraph.graph import StateGraph, END
 
 from orquestador.estado import PortfolioState
-from orquestador.nodos import nodo_validar_perfil, nodo_generar_views, nodo_optimizar, nodo_explicar
+from orquestador.nodos import nodo_validar_perfil, nodo_generar_views, nodo_optimizar, nodo_explicar, nodo_informar_error
 
 
 def _decidir_tras_validar(state: PortfolioState) -> str:
@@ -26,7 +26,7 @@ def _decidir_tras_validar(state: PortfolioState) -> str:
     """
     if state["perfil_valido"]:
         return "generar_views"
-    return END
+    return "informar_error"
 
 
 def construir_grafo(kb):
@@ -54,6 +54,7 @@ def construir_grafo(kb):
     grafo.add_node("generar_views", nodo_generar_views)
     grafo.add_node("optimizar", nodo_optimizar)
     grafo.add_node("explicar", partial(nodo_explicar, kb=kb))
+    grafo.add_node("informar_error", nodo_informar_error)
     
     # 3. Definir el punto de entrada-
     grafo.set_entry_point("validar_perfil")
@@ -64,7 +65,7 @@ def construir_grafo(kb):
         _decidir_tras_validar,
         {
             "generar_views": "generar_views",
-            END: END
+            "informar_error": "informar_error"
         }
     )
     
@@ -72,6 +73,7 @@ def construir_grafo(kb):
     grafo.add_edge("generar_views", "optimizar")
     grafo.add_edge("optimizar", "explicar")
     grafo.add_edge("explicar", END)
+    grafo.add_edge("informar_error", END)
     
     # 6. Compilar: convierte la definición en un grafo ejecutable
     return grafo.compile()

@@ -30,13 +30,32 @@ def nodo_validar_perfil(state: PortfolioState) -> dict:
     perfil = state["perfil"]
     universo = state["universo"]
     
-    valido = (
-        perfil.capital > 0
-        and perfil.horizonte_anios >= 1
-        and len(universo) >= 2
-    )
+    if len(universo) < 2:
+        return {
+            "perfil_valido": False,
+            "mensaje_error": (
+                "No se puede construir una cartera diversificada con menos "
+                "de dos activos. Amplía el universo de inversión."
+            )
+        }
     
-    return {"perfil_valido": valido}
+    if perfil.capital <= 0:
+        return {
+            "perfil_valido": False,
+            "mensaje_error": (
+                "El capital a invertir debe ser mayor que cero."
+            )
+        }
+        
+    if perfil.horizonte_anios < 1:
+        return {
+            "perfil_valido": False,
+            "mensaje_error": (
+                "El horizonte de inversión debe ser de al menos un año."
+            )
+        }
+
+    return {"perfil_valido": True, "mensaje_error": None}
 
 
 def nodo_generar_views(state: PortfolioState) -> dict:
@@ -89,5 +108,24 @@ def nodo_explicar(state: PortfolioState, kb) -> dict:
     explicacion = explicar_cartera(state["perfil"], state["resultado"], kb)
     return {"explicacion": explicacion}
         
-        
+
+def nodo_informar_error(state: PortfolioState) -> dict:
+    """
+    Nodo terminal de error.
+
+    Se ejecuta cuando la validación falla. Su trabajo es dejar el estado
+    en una forma coherente y presentable: coge el mensaje de error y lo
+    coloca como 'explicacion', de modo que el usuario siempre recibe una
+    respuesta en lenguaje natural, nunca un resultado vacío.
+    """
+    mensaje = state.get("mensaje_error") or (
+        "No se pudo generar la cartera con los datos proporcionados."
+    )
     
+    explicacion = (
+        f"No ha sido posible generar una recomendación de cartera.\n\n"
+        f"Motivo: {mensaje}\n\n"
+        f"Por favor, revisa los datos e inténtalo de nuevo."
+    )
+    
+    return {"explicacion": explicacion}
