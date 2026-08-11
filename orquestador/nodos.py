@@ -16,6 +16,9 @@ from agents.explicador import explicar_cartera
 from agents.pipeline import views_a_diccionario
 from core.optimizer import optimizar_black_litterman, rentabilidades_equilibrio, optimizar_markowitz
 from orquestador.estado import PortfolioState
+from universo.selector import seleccionar_universo, restricciones_completas
+from core.data import descargar_precios
+from core.analysis import matriz_covarianzas
 
 
 def nodo_validar_perfil(state: PortfolioState) -> dict:
@@ -28,16 +31,6 @@ def nodo_validar_perfil(state: PortfolioState) -> dict:
     que el universo no esté vacío y el capital sea razonable.
     """
     perfil = state["perfil"]
-    universo = state["universo"]
-    
-    if len(universo) < 2:
-        return {
-            "perfil_valido": False,
-            "mensaje_error": (
-                "No se puede construir una cartera diversificada con menos "
-                "de dos activos. Amplía el universo de inversión."
-            )
-        }
     
     if perfil.capital <= 0:
         return {
@@ -77,7 +70,7 @@ def nodo_optimizar(state: PortfolioState) -> dict:
     
     # Restricciones desde el perfil, en el orden canónico de S.
     orden_canonico = list(S.index)
-    restricciones = generar_restricciones(perfil, orden_canonico)
+    restricciones = restricciones_completas(perfil, orden_canonico)
     
     views_dict = views_a_diccionario(views) if views else {}
     
@@ -129,3 +122,48 @@ def nodo_informar_error(state: PortfolioState) -> dict:
     )
     
     return {"explicacion": explicacion}
+
+
+def nodo_seleccionar_universo(state: PortfolioState) -> dict:
+    """
+    Selecciona el universo de activos adecuado para el perfil.
+
+    Primera etapa del flujo real: en vez de recibir tickers fijos, el
+    sistema elige del catálogo los activos apropiados al perfil, descarga
+    sus precios y calcula la matriz de covarianzas. Escribe en el estado
+    el universo, S y los market_caps.
+    """
+    perfil = state["perfil"]
+    
+    # Seleccionar universo del catálogo según el perfil.
+    universo = seleccionar_universo(perfil)
+    
+    # Descargar precios y calcular covarianzas.
+    precios = descargar_precios(universo, "2015-01-01", "2025-01-01")
+    
+    # El universo real es el de las columnas que se descargaron bien.
+    universo_real = list(precios.columns)
+    S = matriz_covarianzas(precios)
+    
+    # Market caps proxy: iguales para todos (simplificación).
+    # En un sistema real vendrían del AUM de cada ETF.
+    market_caps = {t: 1e9 for t in universo_real}
+    
+    # Verificar que el universo seleccionado permite diversificar.
+    if len(universo_real) < 2:
+        return {
+            "universo": universo_real,
+            "S": S,
+            "market_caps": market_caps,
+            "perfil_valido": False,
+            "mensaje_error": (
+                "El universo seleccionado para tu perfil es insuficiente "
+                "para construir una cartera diversificada."
+            )
+        }
+    
+    return {
+        "universo": universo_real,
+        "S": S,
+        "market_caps": market_caps
+    }    

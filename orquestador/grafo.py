@@ -14,7 +14,7 @@ from functools import partial
 from langgraph.graph import StateGraph, END
 
 from orquestador.estado import PortfolioState
-from orquestador.nodos import nodo_validar_perfil, nodo_generar_views, nodo_optimizar, nodo_explicar, nodo_informar_error
+from orquestador.nodos import nodo_validar_perfil, nodo_seleccionar_universo, nodo_generar_views, nodo_optimizar, nodo_explicar, nodo_informar_error
 
 
 def _decidir_tras_validar(state: PortfolioState) -> str:
@@ -25,7 +25,7 @@ def _decidir_tras_validar(state: PortfolioState) -> str:
     nodo. Si el perfil no es válido, termina el grafo (END).
     """
     if state["perfil_valido"]:
-        return "generar_views"
+        return "seleccionar_universo"
     return "informar_error"
 
 
@@ -51,6 +51,7 @@ def construir_grafo(kb):
     # 2. Registrar los nodos. El explicador necesita la kb: la inyectamos
     # con partial, que "fija" ese arguemnto dejando solo el estado.
     grafo.add_node("validar_perfil", nodo_validar_perfil)
+    grafo.add_node("seleccionar_universo", nodo_seleccionar_universo)
     grafo.add_node("generar_views", nodo_generar_views)
     grafo.add_node("optimizar", nodo_optimizar)
     grafo.add_node("explicar", partial(nodo_explicar, kb=kb))
@@ -64,12 +65,13 @@ def construir_grafo(kb):
         "validar_perfil",
         _decidir_tras_validar,
         {
-            "generar_views": "generar_views",
+            "seleccionar_universo": "seleccionar_universo",
             "informar_error": "informar_error"
         }
     )
     
     # 5. Aristas normales: el resto del flujo es secuencial.
+    grafo.add_edge("seleccionar_universo", "generar_views")
     grafo.add_edge("generar_views", "optimizar")
     grafo.add_edge("optimizar", "explicar")
     grafo.add_edge("explicar", END)

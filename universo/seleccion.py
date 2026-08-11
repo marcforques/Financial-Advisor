@@ -20,10 +20,17 @@ def _es_amplio(activo: dict) -> bool:
     Un activo es 'amplio' si es un índice diversificado (no sectorial,
     no de un solo país emergente). Los amplios son más admisibles.
     """
-    if activo["sector"] not in (Sector.AMPLIO, Sector.NA):
-        return False  # es sectorial -> concentrado
-    if activo["region"] == Region.EMERGENTES and activo["clase"] == Clase.RENTA_VARIABLE:
-        return False  # RV de emergentes -> concentrado/volátil
+    # Solo la renta variable puede ser "amplia".
+    if activo["clase"] != Clase.RENTA_VARIABLE:
+        return False
+    
+    # Sectorial -> concentrado
+    if activo["sector"] != Sector.AMPLIO:
+        return False  
+    
+    # Renta variable de emergentes -> concentrada/volátil.    
+    if activo["region"] == Region.EMERGENTES:
+        return False 
     return True
 
 
@@ -42,23 +49,31 @@ def _es_admisible(activo: dict, nivel: NivelRiesgo) -> bool:
     riesgo = activo["riesgo"]
     amplio = _es_amplio(activo)
 
+    # ─── AGRESIVO ───
     if nivel == NivelRiesgo.AGRESIVO:
         return True  # el agresivo puede ver todo
 
+    # ─── MODERADO ───
     if nivel == NivelRiesgo.MODERADO:
-        # Todo salvo lo de riesgo alto que además sea concentrado.
+        # Materias primas: solo oro (plata y cestas son demasiado volátiles).
+        if clase == Clase.MATERIAS_PRIMAS:
+            return activo["ticker"] == "GLD"
+        # Renta variable de riesgo alto concentrada: fuera.
         if riesgo == NivelRiesgoActivo.ALTO and not amplio:
+            return False
+        # Bonos de riesgo alto (p. ej. emergentes): fuera para moderado.
+        if clase == Clase.BONOS and riesgo == NivelRiesgoActivo.ALTO:
             return False
         return True
 
-    # CONSERVADOR:
-    # - Todos los bonos.
+    # ─── CONSERVADOR ─── 
+    # Bonos de riesgo no-alto.
     if clase == Clase.BONOS:
-        return True
-    # - Renta variable solo si es amplia y de riesgo no-alto.
+        return riesgo != NivelRiesgoActivo.ALTO
+    # Renta variable solo si es amplia y de riesgo no-alto.
     if clase == Clase.RENTA_VARIABLE:
         return amplio and riesgo != NivelRiesgoActivo.ALTO
-    # - Oro sí (refugio clásico), resto de materias primas no.
+    # Materias primas: solo oro.
     if clase == Clase.MATERIAS_PRIMAS:
         return activo["ticker"] == "GLD"
     return False
