@@ -14,7 +14,7 @@ from typing import Callable
 
 import pandas as pd
 
-from agents.perfil import PerfilInversor
+from agents.perfil import PerfilInversor, NivelRiesgo
 from agents.restricciones import generar_restricciones
 from universo.seleccion import filtrar_por_perfil
 from universo.diversificacion import restricciones_diversificacion
@@ -53,6 +53,17 @@ def restricciones_completas(perfil: PerfilInversor, orden_activos: list[str]) ->
     
     # Restricciones de diversificación (región y sector).
     restr_div = restricciones_diversificacion(perfil, orden_activos)
+    
+    # Tope por activo individual: ningún activo domina la cartera.
+    # Evita que un solo bono/acción acapare todo el cupo de su clase
+    # (diversificación aparente a nivel de activo).
+    max_por_activo = {
+        NivelRiesgo.CONSERVADOR: 0.25,
+        NivelRiesgo.MODERADO: 0.30,
+        NivelRiesgo.AGRESIVO: 0.40,
+    }[perfil.nivel_riesgo]
+
+    restr_activo = [lambda w, m=max_por_activo: w <= m]
     
     # Combinadas: el optimizador debe respetarlas todas.
     return restr_clase + restr_div
