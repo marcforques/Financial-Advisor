@@ -10,6 +10,7 @@ import pytest
 
 from agents.perfil import PerfilInversor, NivelRiesgo, ObjetivoInversion
 from agents.restricciones import generar_restricciones, _REGLAS_RIESGO
+from universo.catalogo import Clase
 
 
 def _perfil(nivel: NivelRiesgo) -> PerfilInversor:
@@ -67,10 +68,8 @@ def test_conservador_limita_mas_renta_variable():
     """
     El conservador debe permitir MENOS renta variable que el agresivo.
     """
-    from agents.restricciones import _REGLAS_RIESGO, ClaseActivo
-
-    max_rv_cons = _REGLAS_RIESGO[NivelRiesgo.CONSERVADOR][ClaseActivo.RENTA_VARIABLE][1]
-    max_rv_agr = _REGLAS_RIESGO[NivelRiesgo.AGRESIVO][ClaseActivo.RENTA_VARIABLE][1]
+    max_rv_cons = _REGLAS_RIESGO[NivelRiesgo.CONSERVADOR][Clase.RENTA_VARIABLE][1]
+    max_rv_agr = _REGLAS_RIESGO[NivelRiesgo.AGRESIVO][Clase.RENTA_VARIABLE][1]
 
     assert max_rv_cons < max_rv_agr
 
@@ -79,10 +78,9 @@ def test_min_bonos_decrece_con_riesgo():
     """
     El mínimo de bonos debe decrecer: conservador > moderado >= agresivo.
     """
-    from agents.restricciones import _REGLAS_RIESGO, ClaseActivo
 
-    min_cons = _REGLAS_RIESGO[NivelRiesgo.CONSERVADOR][ClaseActivo.BONOS][0]
-    min_mod = _REGLAS_RIESGO[NivelRiesgo.MODERADO][ClaseActivo.BONOS][0]
-    min_agr = _REGLAS_RIESGO[NivelRiesgo.AGRESIVO][ClaseActivo.BONOS][0]
+    min_cons = _REGLAS_RIESGO[NivelRiesgo.CONSERVADOR][Clase.BONOS][0]
+    min_mod = _REGLAS_RIESGO[NivelRiesgo.MODERADO][Clase.BONOS][0]
+    min_agr = _REGLAS_RIESGO[NivelRiesgo.AGRESIVO][Clase.BONOS][0]
 
     assert min_cons > min_mod >= min_agr

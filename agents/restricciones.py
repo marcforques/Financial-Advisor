@@ -1,67 +1,49 @@
 """
 Generador de restricciones a partir del perfil.
 
-Responsabilidad única: traducir un PerfilInversor en la lista de
-restricciones que consume el optimizador.
+Responsabilidad única: traducir un PerfilInversor en restricciones por
+clase de activo que consume el optimizador.
 
-Este módulo es código PURO y determinista, sin IA. Las restricciones se
-definen por CLASE DE ACTIVO (renta variable, bonos, oro), no agrupando
-activos defensivos en un cajón común. Esto evita que un perfil que pide
-estabilidad acabe sin bonos porque el oro cubrió por sí solo el mínimo
-defensivo: cada clase tiene su propio suelo y techo.
+Este módulo es código PURO y determinista. La clasificación de cada activo
+(a qué clase pertenece) se lee del CATÁLOGO, que es la única fuente de
+verdad del sistema, en lugar de mantener una tabla propia. Así, añadir un
+activo al catálogo lo hace automáticamente reconocible aquí.
 """
+
 
 from typing import Callable
 
 from agents.perfil import PerfilInversor, NivelRiesgo
-
-class ClaseActivo:
-    """
-    Clases de activos reconocidas por el sistema
-    """
-    RENTA_VARIABLE = "renta_variable"
-    BONOS = "bonos"
-    ORO = "oro"
-    
+from universo.catalogo import metadatos, Clase
 
 
-# Mapa de cada ticker a su clase de activo.
-# En el sistema completo esto lo proporciona el agente de universo.
-CLASIFICACION_ACTIVOS = {
-    "SPY": ClaseActivo.RENTA_VARIABLE,
-    "EEM": ClaseActivo.RENTA_VARIABLE,
-    "AGG": ClaseActivo.BONOS,
-    "ORO": ClaseActivo.ORO
-}
 
-
-# Reglas por nivel de riesgo. Cada perfil define límites mínimos de
-# activos "refugio" (bonos, oro) y máximos de activos de riesgo.
-# Estos valores son decisiones de negocio documentadas en la memoria.
+# Reglas por nivel de riesgo, por CLASE de activo (mín, máx) agregado.
 _REGLAS_RIESGO = {
     NivelRiesgo.CONSERVADOR: {
-        ClaseActivo.RENTA_VARIABLE: (0.10, 0.40),
-        ClaseActivo.BONOS: (0.30, 0.60),
-        ClaseActivo.ORO: (0.05, 0.25)
+        Clase.RENTA_VARIABLE: (0.10, 0.40),
+        Clase.BONOS: (0.30, 0.60),
+        Clase.MATERIAS_PRIMAS: (0.05, 0.25),
     },
     NivelRiesgo.MODERADO: {
-        ClaseActivo.RENTA_VARIABLE: (0.30, 0.65),
-        ClaseActivo.BONOS: (0.15, 0.40),
-        ClaseActivo.ORO: (0.05, 0.25)
+        Clase.RENTA_VARIABLE: (0.30, 0.65),
+        Clase.BONOS: (0.15, 0.40),
+        Clase.MATERIAS_PRIMAS: (0.05, 0.25),
     },
     NivelRiesgo.AGRESIVO: {
-        ClaseActivo.RENTA_VARIABLE: (0.50, 0.85),
-        ClaseActivo.BONOS: (0.00, 0.25),
-        ClaseActivo.ORO: (0.00, 0.20)
+        Clase.RENTA_VARIABLE: (0.50, 0.85),
+        Clase.BONOS: (0.00, 0.25),
+        Clase.MATERIAS_PRIMAS: (0.00, 0.20),
     }
 }
+
 
 
 def _indices_por_clase(activos: list[str], clase: str) -> list[int]:
     """
     Devuelve los índices de los actives que pertenecen a una clase.
     """
-    return[i for i, activo in enumerate(activos) if CLASIFICACION_ACTIVOS.get(activo) == clase]
+    return[i for i, ticker in enumerate(activos) if metadatos(ticker)["clase"] == clase]
 
 
 def generar_restricciones(perfil: PerfilInversor, activos: list[str]) -> list[Callable]:

@@ -15,7 +15,7 @@ import pandas as pd
 import pytest
 
 from agents.perfil import PerfilInversor, NivelRiesgo, ObjetivoInversion
-from agents.restricciones import generar_restricciones, CLASIFICACION_ACTIVOS
+from agents.restricciones import generar_restricciones
 from core.optimizer import optimizar_markowitz
 
 
