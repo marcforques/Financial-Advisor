@@ -77,4 +77,60 @@ def grafico_evolucion_carteras(
     plt.savefig(ruta, dpi=150, bbox_inches="tight")
     plt.close()
     
-    return str(ruta)   
+    return str(ruta)
+
+
+def grafico_comparacion_perfiles(
+    carteras_por_perfil: dict[str, dict],
+    precios_test: pd.DataFrame,
+    nombre_archivo: str = "comparacion_perfiles.png"
+) -> str:
+    """
+    Compara la evolución de las carteras de distintos perfiles de riesgo.
+
+    Parameters
+    ----------
+    carteras_por_perfil : dict[str, dict]
+        {nombre_perfil: pesos}, p. ej. {"Conservador": {...}, ...}.
+    precios_test : pd.DataFrame
+        Precios del periodo de prueba.
+    nombre_archivo : str
+        Nombre del PNG de salida.
+
+    Returns
+    -------
+    str
+        Ruta del archivo guardado.
+    """
+    _preparar_figura()
+    
+    # Colores que refuerzan la narrativa: verde=seguro, rojo=arriesgado.
+    colores_perfil = {
+        "Conservador": "#55A868",
+        "Moderado": "#4C72B0",
+        "Agresivo": "#C44E52"
+    }
+    
+    for nombre, pesos in carteras_por_perfil.items():
+        metricas = rendimiento_backtest(pesos, precios_test)
+        serie = metricas["serie_valor"]
+        color = colores_perfil.get(nombre, "#8172B3")
+        dd = metricas["max_drawdown"] * 100
+        etiqueta = f"{nombre} (DD: {dd:.1f}%)"
+        plt.plot(serie.index, serie.values, label=etiqueta, color=color, linewidth=1.8)
+        
+    plt.title(
+        "Comparación de perfiles de riesgo (2020-2025)",
+        fontsize=13, fontweight="bold"
+    )
+    plt.xlabel("Fecha")
+    plt.ylabel("Valor (inicio = 1€)")
+    plt.legend(loc="upper left", framealpha=0.9)
+    plt.axhline(y=1.0, color="gray", linestyle=":", alpha=0.5)
+    plt.tight_layout()
+    
+    ruta = _FIGURAS / nombre_archivo
+    plt.savefig(ruta, dpi=150, bbox_inches="tight")
+    plt.close()
+    
+    return str(ruta)
