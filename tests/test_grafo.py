@@ -92,19 +92,21 @@ def test_camino_valido_produce_cartera(datos):
     assert final["explicacion"] == "Explicación de prueba."
     
     
-def test_camino_error_universo_pequeno(datos):
+def test_camino_error_perfil_invalido(datos):
     """
-    Con universo de un solo activo, el grafo va al nodo de error.
+    Con un perfil de capital inválido, el grafo va al nodo de error
+    sin llegar a optimizar.
     """
     
     S, market_caps = datos
-    perfil = PerfilInversor(
+    perfil = PerfilInversor.model_construct(
         nivel_riesgo=NivelRiesgo.MODERADO,
         horizonte_anios=20,
-        capital=60000,
+        capital=-100,
         objetivo=ObjetivoInversion.JUBILACION,
+        matices=[]
     )
-    estado = _estado(perfil, ["SPY"], S, market_caps)  # universo inválido
+    estado = _estado(perfil, ["AGG", "EEM", "GLD", "SPY"], S, market_caps)
 
     grafo = construir_grafo(_KBFalsa())
     final = grafo.invoke(estado)
@@ -113,7 +115,6 @@ def test_camino_error_universo_pequeno(datos):
     assert final["perfil_valido"] is False
     assert final["resultado"] is None
     assert final["explicacion"] is not None
-    assert "dos activos" in final["explicacion"]
     
     
 def test_camino_error_no_llama_al_llm(datos):
@@ -122,13 +123,14 @@ def test_camino_error_no_llama_al_llm(datos):
     """
     
     S, market_caps = datos
-    perfil = PerfilInversor(
+    perfil = PerfilInversor.model_construct(
         nivel_riesgo=NivelRiesgo.MODERADO,
         horizonte_anios=20,
-        capital=60000,
+        capital=-100,
         objetivo=ObjetivoInversion.JUBILACION,
+        matices=[]
     )
-    estado = _estado(perfil, ["SPY"], S, market_caps)
+    estado = _estado(perfil, ["AGG", "EEM", "GLD", "SPY"], S, market_caps)
 
     grafo = construir_grafo(_KBFalsa())
 
