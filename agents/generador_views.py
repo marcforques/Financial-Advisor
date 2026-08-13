@@ -54,18 +54,6 @@ class ViewsGeneradas(BaseModel):
 def generar_views(perfil: PerfilInversor, universo: list[str]) -> ViewsGeneradas:
     """
     Genera views de Black-Litterman a partir del perfil del inversor.
-
-    Parameters
-    ----------
-    perfil : PerfilInversor
-        Perfil completo, incluyendo nivel de riesgo, horizonte y matices.
-    universo : list[str]
-        Tickers disponibles sobre los que se pueden expresar views.
-
-    Returns
-    -------
-    ViewsGeneradas
-        Views estructuradas, cada una con activo, rentabilidad y justificación.
     """
     
     cliente = obtener_cliente()

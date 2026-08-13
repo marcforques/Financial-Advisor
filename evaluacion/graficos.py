@@ -41,22 +41,6 @@ def grafico_evolucion_carteras(
 ) -> str:
     """
     Dibuja la evolución del valor de varias carteras en el periodo test.
-
-    Parameters
-    ----------
-    carteras : dict[str, dict]
-        Diccionario {nombre: pesos} de cada configuración.
-    precios_test : pd.DataFrame
-        Precios del periodo de prueba.
-    titulo : str
-        Título del gráfico.
-    nombre_archivo : str
-        Nombre del archivo PNG de salida.
-
-    Returns
-    -------
-    str
-        Ruta del archivo guardado.
     """
     _preparar_figura()
     
@@ -87,20 +71,6 @@ def grafico_comparacion_perfiles(
 ) -> str:
     """
     Compara la evolución de las carteras de distintos perfiles de riesgo.
-
-    Parameters
-    ----------
-    carteras_por_perfil : dict[str, dict]
-        {nombre_perfil: pesos}, p. ej. {"Conservador": {...}, ...}.
-    precios_test : pd.DataFrame
-        Precios del periodo de prueba.
-    nombre_archivo : str
-        Nombre del PNG de salida.
-
-    Returns
-    -------
-    str
-        Ruta del archivo guardado.
     """
     _preparar_figura()
     

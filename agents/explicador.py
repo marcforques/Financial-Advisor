@@ -47,20 +47,6 @@ def explicar_cartera(
     ) -> str:
     """
     Genera una explicación en lenguaje natural de la cartera recomendada.
-
-    Parameters
-    ----------
-    perfil : PerfilInversor
-        Perfil del inversor.
-    resultado : dict
-        Salida del pipeline: pesos, métricas, views usadas.
-    kb : BaseConocimiento
-        Base de conocimiento para anclar los conceptos.
-
-    Returns
-    -------
-    str
-        Explicación clara y honesta de la cartera.
     """
     cliente = obtener_cliente()
     

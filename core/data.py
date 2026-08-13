@@ -3,9 +3,6 @@ Módulo de datos de mercado.
 
 Responsabilidad: obtener precios históricos ajustados de forma
 reproducible, cacheándolos en disco para no depender de descargas repetidas.
-
-El resto del sistema NUNCA descarga datos directamente, siempre pasa por
-aquí. Esto centraliza la reproducibilidad en un solo punto.
 """
 
 from pathlib import Path
@@ -31,31 +28,6 @@ def descargar_precios (
     se guardan en disco. Llamadas posteriores con los mismos parámetros 
     leen del caché, garantizando reproducibilidad: los mismos tickers y
     fechas devuelven siempre exactamente los mismos datos.
-    
-    Parameters
-    ----------
-    tickers : list[str]
-        Símbolos de los activos a descargar.
-    inicio : str
-        Fecha de inicio en formato "YYYY-MM-DD".
-    fin : str
-        Fecha de fin de formato "YYYY-MM-DD". Deber ser fija, nunca "hoy",
-        para no romper la reproducibilidad.
-    usar_cache : bool, opcional
-        Si True (por defecto), usa el caché si existe. Si False, fuerza
-        una descarga nueva y sobreescribe el caché.
-        
-    
-    Returns
-    -------
-    pd.DatFrame
-        Precios de cierre ajustados. índice = fechas, columnas = tickers.
-        
-    
-    Raises
-    ------
-    ValueError
-        Si la descarga no devuelve datos para ningún ticker.
     """
     
     _CACHE_DIR.mkdir(exist_ok=True)
@@ -99,25 +71,6 @@ def calcular_rentabilidades(
 ) -> pd.DataFrame:
     """
     Calcula las rentabilidades diarias a partir de los precios.
-    
-    Parameters
-    ----------
-    precios: pd.DataFrame
-        Precios ajustados (salida de `descargar_precios`).
-    tipo: str, opcional
-        "simple" para rentabilidades aritméticas (P1-P0)/P0, usadas en
-        optimización de carteras. "log" para logarítmicas ln(P1/P0),
-        usadas en análisis estadístico de series temporales.
-
-    Returns
-    -------
-    pd.DataFrame
-        Rentabilidades diarias, sin la primera fila (que sería NaN).
-
-    Raises
-    ------
-    ValueError
-        Si `tipo` no es "simple" ni "log".
     """
     if tipo == "simple":
         rentabilidades = precios.pct_change()

@@ -4,10 +4,6 @@ Agente de perfilado.
 Responsabilidad única: interpretar el texto libre que escribe el usuario
 sobre sus objetivos y preocupaciones, y extraer de él matices cualitativos
 estructurados.
-
-Aplica la regla de oro: el LLM SOLO interpreta lenguaje. No calcula, no
-decide carteras, no toca números. Recibe texto impredecible y devuelve
-estructura fiable, garantizada por el esquema Pydantic.
 """
 
 from pydantic import BaseModel, Field
@@ -40,16 +36,6 @@ class MaticesExtraidos(BaseModel):
 def extraer_matices(texto_libre: str) -> MaticesExtraidos:
     """
     Extrae matices cualitativos del texto libre del usuario.
-
-    Parameters
-    ----------
-    texto_libre : str
-        Lo que el usuario escribió sobre sus objetivos o preocupaciones.
-
-    Returns
-    -------
-    MaticesExtraidos
-        Matices estructurados y resumen, garantizados por el esquema.
     """
     
     # Si no hay texto, no gastamos una llamada al LLM

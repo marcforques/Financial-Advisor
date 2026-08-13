@@ -5,9 +5,6 @@ Evalúa cómo habría rendido una cartera en un periodo de PRUEBA usando
 pesos calculados en un periodo de ENTRENAMIENTO anterior. La separación
 temporal evita el look-ahead bias: la cartera se enfrenta a datos que no
 vio al optimizarse.
-
-Métricas honestas: rentabilidad anualizada, volatilidad, ratio de Sharpe
-y máximo drawdown (la peor caída desde un máximo).
 """
 import numpy as np
 import pandas as pd
@@ -20,21 +17,6 @@ def rendimiento_backtest(
     risk_free_rate: float = 0.02) -> dict:
     """
     Calcula el rendimiento real de una cartera en el periodo de prueba.
-
-    Parameters
-    ----------
-    pesos : dict[str, float]
-        Pesos de la cartera (calculados en entrenamiento).
-    precios_prueba : pd.DataFrame
-        Precios del periodo de PRUEBA (posterior al de entrenamiento).
-    risk_free_rate : float
-        Tasa libre de riesgo para el Sharpe.
-
-    Returns
-    -------
-    dict
-        Métricas: rentabilidad, volatilidad, sharpe, max_drawdown y la
-        serie de valor de la cartera (para graficar).
     """
     # Rentabilidades diarias del periodo de prueba.
     rent_diarias = precios_prueba.pct_change().dropna()
