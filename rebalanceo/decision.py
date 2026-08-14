@@ -136,7 +136,7 @@ def decidir_rebalanceo(
     
     if coste_relativo > parametros.coste_maximo_pct:
         return ResultadoDecision(
-            rebalancear=True,
+            rebalancear=False,
             motivo=(
                 f"El coste de rebalancear ({coste_total:.2f}€, "
                 f"{coste_relativo*100:.1f}% de lo que se movería) supera el "
