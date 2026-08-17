@@ -28,3 +28,7 @@ Thumbs.db
 
 # Scripts de prueba temporales
 probar_*.pyfiguras/
+
+# Bases de datos locales
+carteras*.db*.db
+*.db
