@@ -75,7 +75,8 @@ class RepositorioSQLite(RepositorioCarteras):
                     horizonte_anios INTEGER NOT NULL,
                     objetivo TEXT NOT NULL,
                     fecha_creacion TEXT NOT NULL,
-                    es_externa INTEGER NOT NULL
+                    es_externa INTEGER NOT NULL,
+                    pesos_objetivo TEXT
                 )
             """)
 
@@ -90,12 +91,18 @@ class RepositorioSQLite(RepositorioCarteras):
         # Las posiciones se serializan a JSON para guardarlas en una columna.
         posiciones_json = json.dumps([p.model_dump() for p in cartera.posiciones])
 
+        objetivo_json = (
+            json.dumps(cartera.pesos_objetivo)
+            if cartera.pesos_objetivo is not None else None
+        )
+        
         with self._conectar() as conn:
             conn.execute("""
                 INSERT OR REPLACE INTO carteras
                 (id, usuario_id, nombre, posiciones, nivel_riesgo,
-                 horizonte_anios, objetivo, fecha_creacion, es_externa)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 horizonte_anios, objetivo, fecha_creacion, es_externa,
+                 pesos_objetivo)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 cartera.id,
                 cartera.usuario_id,
@@ -105,7 +112,8 @@ class RepositorioSQLite(RepositorioCarteras):
                 cartera.horizonte_anios,
                 cartera.objetivo.value,
                 cartera.fecha_creacion.isoformat(),
-                int(cartera.es_externa)
+                int(cartera.es_externa),
+                objetivo_json
             ))
         return cartera.id    
     
@@ -116,6 +124,10 @@ class RepositorioSQLite(RepositorioCarteras):
         posiciones = [
             Posicion(**p) for p in json.loads(fila["posiciones"])
         ]
+        
+        objetivo = fila["pesos_objetivo"]
+        pesos_objetivo = json.loads(objetivo) if objetivo else None
+        
         return CarteraGuardada(
             id=fila["id"],
             usuario_id=fila["usuario_id"],
@@ -125,7 +137,8 @@ class RepositorioSQLite(RepositorioCarteras):
             horizonte_anios=fila["horizonte_anios"],
             objetivo=fila["objetivo"],
             fecha_creacion=fila["fecha_creacion"],
-            es_externa=bool(fila["es_externa"])
+            es_externa=bool(fila["es_externa"]),
+            pesos_objetivo=pesos_objetivo
         )
 
     def obtener(self, cartera_id: str) -> CarteraGuardada | None:
