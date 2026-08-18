@@ -49,7 +49,8 @@ class CarteraGuardada(BaseModel):
     objetivo: ObjetivoInversion
     fecha_creacion: datetime = Field(default_factory=datetime.now)
     es_externa: bool = False              # True si el usuario la introdujo a mano
-
+    pesos_objetivo: dict[str, float] | None = None
+    
     def capital_invertido(self) -> float:
         """
         Capital total invertido (a precios de compra).

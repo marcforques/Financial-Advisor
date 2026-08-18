@@ -11,9 +11,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.modelos import PeticionCartera, RespuestaCartera, ActivoCartera
-from rag.base_conocimiento import BaseConocimiento
-from rag.corpus import DOCUMENTOS
-from orquestador.grafo import construir_grafo
+from api.rutas_cartera import router as router_carteras
+from api.dependencias import obtener_grafo
 from agents.perfil import PerfilInversor
 from agents.perfilador import extraer_matices
 from universo.catalogo import metadatos
@@ -25,6 +24,8 @@ app = FastAPI(
     version="0.1.0",
 )
 
+app.include_router(router_carteras)
+
 # CORS: permite que el frontend (en otro puerto/dominio) llame a la API.
 # En desarrollo permitimos localhost; en producción se restringe.
 app.add_middleware(
@@ -34,7 +35,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 @app.get("/")
 def raiz():
@@ -53,30 +53,6 @@ def salud():
         }
     }
     
-
-def _construir_kb():
-    """
-    Prepara la base de conocimiento una sola vez al arrancar.
-    """
-    kb = BaseConocimiento()
-    kb.añadir_documentos(DOCUMENTOS)
-    return kb
-
-# La kb y el grafo se construyen una vez al arrancar (no en cada petición).
-_kb = None
-_grafo = None
-
-
-def _obtener_grafo():
-    """
-    Devuelve el grafo compilado, construyéndolo la primera vez.
-    """
-    global _kb, _grafo
-    if _grafo is None:
-        _kb = _construir_kb()
-        _grafo = construir_grafo(_kb)
-    return _grafo
-
 
 @app.post("/cartera", response_model=RespuestaCartera)
 def crear_cartera(peticion: PeticionCartera):
@@ -115,7 +91,7 @@ def crear_cartera(peticion: PeticionCartera):
         "mensaje_error": None
     }
     
-    grafo = _obtener_grafo()
+    grafo = obtener_grafo()
     final = grafo.invoke(estado_inicial)
     
     # Traducir el resultado del dominio a la respuesta de la API.
