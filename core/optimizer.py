@@ -19,7 +19,7 @@ from typing import Callable
 import pandas as pd
 from pypfopt import EfficientFrontier, black_litterman
 from pypfopt.black_litterman import BlackLittermanModel
-
+import numpy as np
 
 def optimizar_markowitz(
     mu: pd.Series,
@@ -163,3 +163,157 @@ def optimizar_black_litterman(
     # Añadimos el posterior al resultado para poder inspeccionarlo.
     resultado["posterior"] = dict(posterior)
     return resultado
+
+
+def optimizar_concentrada(
+    mu,
+    S,
+    restricciones=None,
+    max_activos: int = 7,
+    umbral_minimo: float = 0.04,
+    max_por_activo: float = 0.35,
+):
+    """Optimiza y reduce a una cartera concentrada y operativa.
+
+    Proceso en dos fases:
+      1. Optimiza sobre todo el universo.
+      2. Selecciona los `max_activos` con más peso.
+      3. Reoptimiza SOLO sobre esos, con un tope por activo para que
+         ninguno domine (evita concentración excesiva tras reducir).
+      4. Aplica el umbral mínimo y renormaliza.
+
+    Parameters
+    ----------
+    (igual que antes)
+    max_por_activo : float
+        Peso máximo de cualquier posición en la reoptimización.
+
+    Returns
+    -------
+    dict
+        Cartera final {ticker: peso}, con métricas.
+    """
+    # --- Fase 1: optimización completa sobre todo el universo ---
+    resultado_completo = optimizar_markowitz(mu, S, restricciones)
+    pesos_completos = resultado_completo["pesos"]
+
+    # --- Fase 2: seleccionar los max_activos con más peso ---
+    mejores = sorted(
+        pesos_completos.items(), key=lambda x: x[1], reverse=True
+    )[:max_activos]
+    tickers_elegidos = [t for t, _ in mejores]
+
+    # Atajo: solo si ya hay pocos activos Y ninguno excede el tope por activo.
+    # Si algún activo supera max_por_activo, forzamos la fase 3 para corregirlo.
+    activos_sobre_umbral = [p for p in pesos_completos.values() if p > umbral_minimo]
+    algun_exceso = any(p > max_por_activo for p in pesos_completos.values())
+    if len(activos_sobre_umbral) <= max_activos and not algun_exceso:
+        return _limpiar_y_renormalizar(resultado_completo, mu, S, umbral_minimo)
+
+    # --- Fase 3: reoptimizar solo sobre los elegidos, con tope por activo ---
+    mu_reducido = mu[tickers_elegidos]
+    S_reducido = S.loc[tickers_elegidos, tickers_elegidos]
+
+    # Tope por activo: ninguna posición domina la cartera concentrada.
+    orden = list(S_reducido.index)
+    restr_tope = [lambda w, m=max_por_activo: w <= m]
+
+    resultado_reducido = optimizar_markowitz(mu_reducido, S_reducido, restr_tope)
+
+    # --- Fase 4: limpiar umbral y renormalizar ---
+    return _limpiar_y_renormalizar(resultado_reducido, mu_reducido, S_reducido, umbral_minimo)
+
+
+
+def _limpiar_y_renormalizar(resultado, mu, S, umbral):
+    """
+    Elimina posiciones bajo el umbral y renormaliza a suma 1.
+    """
+    pesos = {t: p for t, p in resultado["pesos"].items() if p >= umbral}
+    total = sum(pesos.values())
+    if total > 0:
+        pesos = {t: p / total for t, p in pesos.items()}
+
+    # Recalcular métricas con los pesos finales.
+    tickers = list(pesos.keys())
+    w = np.array([pesos[t] for t in tickers])
+    mu_f = mu[tickers].values
+    S_f = S.loc[tickers, tickers].values
+
+    rent = float(w @ mu_f)
+    vol = float(np.sqrt(w @ S_f @ w))
+    sharpe = rent / vol if vol > 0 else 0.0
+
+    return {
+        "pesos": pesos,
+        "rentabilidad": rent,
+        "volatilidad": vol,
+        "sharpe": sharpe
+    }
+    
+    
+def concentrar_cartera(
+    resultado,
+    mu,
+    S,
+    max_activos: int = 7,
+    umbral_minimo: float = 0.04,
+    max_por_activo: float = 0.35,
+):
+    """Reduce una cartera ya optimizada a pocas posiciones operativas.
+
+    Toma el resultado de una optimización (Markowitz o Black-Litterman) y
+    lo concentra: se queda con los mejores activos y reoptimiza entre ellos
+    con un tope por activo, evitando residuales y concentración excesiva.
+
+    Funciona igual para ambos optimizadores porque solo necesita los pesos
+    del resultado, las rentabilidades usadas (mu) y la covarianza (S).
+
+    Parameters
+    ----------
+    resultado : dict
+        Resultado de una optimización, con clave "pesos".
+    mu : pd.Series
+        Rentabilidades usadas en la optimización (prior o posterior de BL).
+    S : pd.DataFrame
+        Matriz de covarianzas.
+    max_activos : int
+        Número máximo de posiciones.
+    umbral_minimo : float
+        Peso mínimo por posición; por debajo se elimina.
+    max_por_activo : float
+        Peso máximo por posición en la reoptimización.
+
+    Returns
+    -------
+    dict
+        Cartera concentrada {pesos, rentabilidad, volatilidad, sharpe},
+        conservando las claves extra del resultado original (posterior, etc.).
+    """
+    pesos_completos = resultado["pesos"]
+
+    # Seleccionar los max_activos con más peso.
+    mejores = sorted(
+        pesos_completos.items(), key=lambda x: x[1], reverse=True
+    )[:max_activos]
+    tickers_elegidos = [t for t, _ in mejores]
+
+    # Atajo: si ya hay pocos activos Y ninguno excede el tope, solo limpiar.
+    activos_sobre_umbral = [p for p in pesos_completos.values() if p > umbral_minimo]
+    algun_exceso = any(p > max_por_activo for p in pesos_completos.values())
+    if len(activos_sobre_umbral) <= max_activos and not algun_exceso:
+        final = _limpiar_y_renormalizar(resultado, mu, S, umbral_minimo)
+    else:
+        # Reoptimizar solo sobre los elegidos, con tope por activo.
+        mu_reducido = mu[tickers_elegidos]
+        S_reducido = S.loc[tickers_elegidos, tickers_elegidos]
+        restr_tope = [lambda w, m=max_por_activo: w <= m]
+        resultado_reducido = optimizar_markowitz(mu_reducido, S_reducido, restr_tope)
+        final = _limpiar_y_renormalizar(resultado_reducido, mu_reducido, S_reducido, umbral_minimo)
+
+    # Conservar claves extra del resultado original (posterior, etc.).
+    for clave in resultado:
+        if clave not in final:
+            final[clave] = resultado[clave]
+
+    return final

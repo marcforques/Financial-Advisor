@@ -9,9 +9,9 @@ IMPORTANTE: los agentes NO se reescriben. Estos nodos son adaptadores
 finos que conectan los agentes al grafo. Toda la lógica sigue viviendo
 en los módulos de agents/ y core/.
 """
+import pandas as pd
 
 from agents.generador_views import generar_views
-from agents.restricciones import generar_restricciones
 from agents.explicador import explicar_cartera
 from agents.pipeline import views_a_diccionario
 from core.optimizer import optimizar_black_litterman, rentabilidades_equilibrio, optimizar_markowitz
@@ -61,32 +61,42 @@ def nodo_generar_views(state: PortfolioState) -> dict:
 
 def nodo_optimizar(state: PortfolioState) -> dict:
     """
-    Optimiza la cartera con Black-Litterman y las restricciones.
+    Optimiza la cartera con Black-Litterman y las restricciones, y la
+    reduce a una cartera concentrada y operativa.
     """
-    perfil= state["perfil"]
+    from core.optimizer import concentrar_cartera
+
+    perfil = state["perfil"]
     S = state["S"]
     market_caps = state["market_caps"]
     views = state["views"]
-    
-    # Restricciones desde el perfil, en el orden canónico de S.
+
     orden_canonico = list(S.index)
     restricciones = restricciones_completas(perfil, orden_canonico)
-    
+
     views_dict = views_a_diccionario(views) if views else {}
-    
+
     if not views_dict:
         prior = rentabilidades_equilibrio(market_caps, S)
         resultado = optimizar_markowitz(prior, S, restricciones=restricciones)
         resultado["posterior"] = dict(prior)
+        mu_usado = prior
     else:
         resultado = optimizar_black_litterman(S, market_caps, views_dict, restricciones=restricciones)
-    
-    # Guardamos las views con justificación para el explicador.
+        # El posterior viene como dict en el resultado; lo pasamos a Series.
+        mu_usado = pd.Series(resultado["posterior"])
+
+    # Reducir a cartera concentrada y operativa.
+    resultado = concentrar_cartera(
+        resultado, mu_usado, S,
+        max_activos=7, umbral_minimo=0.04, max_por_activo=0.35,
+    )
+
     resultado["views_usadas"] = [
         {"activo": v.activo, "justificacion": v.justificacion}
         for v in (views.views if views else [])
     ]
-    
+
     return {"resultado": resultado}
     
     

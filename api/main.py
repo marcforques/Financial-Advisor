@@ -30,7 +30,12 @@ app.include_router(router_carteras)
 # En desarrollo permitimos localhost; en producción se restringe.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # el frontend Next.js
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+    ],  # el frontend Next.js
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
