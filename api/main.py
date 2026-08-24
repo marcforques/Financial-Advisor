@@ -9,13 +9,17 @@ esta capa solo la traduce a peticiones y respuestas web.
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from datetime import datetime
 
 from api.modelos import PeticionCartera, RespuestaCartera, ActivoCartera
 from api.rutas_cartera import router as router_carteras
 from api.dependencias import obtener_grafo
+from api.modelos_cartera import CarteraGuardada, Posicion
 from agents.perfil import PerfilInversor
 from agents.perfilador import extraer_matices
 from universo.catalogo import metadatos
+from core.data import descargar_precios
+from persistencia.repositorio import RepositorioSQLite
 
 
 app = FastAPI(
@@ -110,17 +114,79 @@ def crear_cartera(peticion: PeticionCartera):
                 except Exception:
                     region=""
                 activos.append(ActivoCartera(ticker=ticker, peso=peso, region=region))
-                
+    
+    # Guardado automático de la cartera generada.
+    cartera_id = None
+    if resultado:
+        try:
+            cartera_id = _guardar_cartera_automatica(
+                perfil=perfil,
+                resultado=resultado,
+                capital=peticion.capital,
+                usuario_id=peticion.usuario_id,
+                nombre=peticion.nombre
+            )
+        except Exception as e:
+            # Si el guarado falla, no rompemos la respuesta de la cartera.
+            print(f"Aviso: no se pudo guardar la cartera automáticamente: {e}")
+    
     return RespuestaCartera(
         activos=activos,
         rentabilidad_esperada=resultado["rentabilidad"] if resultado else 0.0,
         volatilidad=resultado["volatilidad"] if resultado else 0.0,
         sharpe=resultado["sharpe"] if resultado else 0.0,
         explicacion=final.get("explicacion", ""),
-        universo_considerado=len(final.get("universo", []))
+        universo_considerado=len(final.get("universo", [])),
+        cartera_id=cartera_id
     )
     
+    
+def _guardar_cartera_automatica(perfil, resultado, capital, usuario_id, nombre):
+    """
+    Convierte la cartera generada (pesos) en una CarteraGuardada
+    (participaciones + precios de compra) y la persiste.
 
+    Los precios de compra son los precios ACTUALES (se compra hoy). Las
+    participaciones se derivan de: peso * capital / precio_actual.
+    Guarda también los pesos_objetivo, para el rebalanceo "volver al plan".
+    """
+    pesos = resultado["pesos"]
+    tickers = list(pesos.keys())
+    
+    # Precio actual de cada activo (última cotización disponible)
+    precios_df = descargar_precios(tickers, "2024-01-01", "2025-01-01")
+    precios_actuales = {t: float(precios_df[t].iloc[-1]) for t in tickers}
+    
+    # Convertir pesos -> participaciones
+    posiciones = []
+    for ticker, peso in pesos.items():
+        precio = precios_actuales[ticker]
+        importe = peso * capital
+        participaciones = importe / precio if precio > 0 else 0
+        if participaciones > 0: 
+            posiciones.append(Posicion(
+                ticker=ticker,
+                participaciones=participaciones,
+                precio_compra=precio
+            ))
+            
+    # Nombre por defecto si no se dio uno.
+    if not nombre:
+        nombre = f"Cartera {perfil.nivel_riesgo.value} · {datetime.now():%d/%m/%Y}"
+    
+    cartera = CarteraGuardada(
+        usuario_id=usuario_id,
+        nombre=nombre,
+        posiciones=posiciones,
+        nivel_riesgo=perfil.nivel_riesgo,
+        horizonte_anios=perfil.horizonte_anios,
+        objetivo=perfil.objetivo,
+        pesos_objetivo=dict(pesos)
+    )
+    
+    repo = RepositorioSQLite()
+    cartera_id = repo.guardar(cartera)
+    return cartera_id
     
     
     

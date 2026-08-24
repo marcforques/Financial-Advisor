@@ -20,7 +20,15 @@ class PeticionCartera(BaseModel):
     objetivo: ObjetivoInversion
     texto_libre: str = Field(
         default="",
-        description="Texto libre del usuario para extraer matices (opcional).",
+        description="Texto libre del usuario para extraer matices (opcional)."
+    )
+    usuario_id: str = Field(
+        default="usuario_local",
+        description="Propietario de la cartera (temporal hasta tener auth)."   
+    )
+    nombre: str = Field(
+        default="",
+        decription="Nombre de la cartera; si vacío, se genera uno."
     )
 
 
@@ -39,3 +47,4 @@ class RespuestaCartera(BaseModel):
     sharpe: float
     explicacion: str
     universo_considerado: int  # cuántos activos se evaluaron
+    cartera_id: str | None = None   # id de la cartera guardada automáticamente
