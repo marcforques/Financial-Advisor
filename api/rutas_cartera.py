@@ -14,7 +14,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from api.modelos_cartera import CarteraGuardada
-from persistencia.repositorio import RepositorioSQLite
+from persistencia.repositorio import RepositorioSupabase
 from rebalanceo.agente import recomendar_rebalanceo
 from agents.perfil import PerfilInversor
 from api.dependencias import obtener_grafo
@@ -23,7 +23,7 @@ from api.dependencias import obtener_grafo
 router = APIRouter(prefix="/carteras", tags=["carteras"])
 
 # Repositorio compartido
-_repo = RepositorioSQLite()
+_repo = RepositorioSupabase()
 
 
 @router.post("")

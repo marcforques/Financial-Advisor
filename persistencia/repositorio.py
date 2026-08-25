@@ -10,10 +10,14 @@ Mismo patrón de fachada usado en el catálogo y en la base de conocimiento:
 aislar la dependencia externa tras una interfaz estable.
 """
 
+import os
 import json
 import sqlite3
+import uuid
 from abc import ABC, abstractmethod
 from pathlib import Path
+
+from supabase import create_client
 
 from api.modelos_cartera import CarteraGuardada, Posicion
 
@@ -162,3 +166,107 @@ class RepositorioSQLite(RepositorioCarteras):
                 "DELETE FROM carteras WHERE id = ?", (cartera_id,)
             )
         return cursor.rowcount > 0
+    
+
+class RepositorioSupabase(RepositorioCarteras):
+    """
+    Implementación del repositorio con Supabase (PostgreSQL en la nube).
+
+    Misma interfaz que RepositorioSQLite: el resto del sistema no distingue
+    cuál se usa. Esta es la ventaja del patrón repositorio — migrar de SQLite
+    a Supabase es cambiar qué clase se instancia, sin tocar la lógica.
+    """
+    
+    def __init__(self):
+        
+        url = os.environ.get("SUPABASE_URL")
+        key = os.environ.get("SUPABASE_KEY")
+        if not url or not key:
+            raise ValueError("Faltan SUPABASE_URL o SUPABSE_KEY en las variables de entorno.")
+        
+        self.cliente = create_client(url, key)
+        self.tabla="carteras"
+        
+        
+    def guardar(self, cartera: CarteraGuardada) -> str:
+        """
+        Guarda una cartera (inserta o actualiza) y devuelve su id.
+        """
+        if cartera.id is None:
+            cartera_id = str(uuid.uuid4())
+            
+        # Serializamos posiciones y pesos_objetivos a estructuras JSON.
+        fila = {
+            "id": cartera_id,
+            "usuario_id": cartera.usuario_id,
+            "nombre": cartera.nombre,
+            "posiciones": [p.model_dump() for p in cartera.posiciones],
+            "nivel_riesgo": cartera.nivel_riesgo.value,
+            "horizonte_anios": cartera.horizonte_anios,
+            "objetivo": cartera.objetivo.value,
+            "fecha_creacion": cartera.fecha_creacion.isoformat(),
+            "es_externa": cartera.es_externa,
+            "pesos_objetivo": cartera.pesos_objetivo
+            }
+        
+        respuesta = self.cliente.table(self.tabla).upsert(fila).execute()
+        
+        if respuesta.data:
+            return respuesta.data[0]["id"]
+        return cartera.id
+
+
+    def _fila_a_cartera(self, fila: dict) -> CarteraGuardada:
+        """
+        Convierte una fila de Supabase en un objeto CarteraGuardada.
+        """
+        posiciones = [Posicion(**p) for p in fila["posiciones"]]
+        return CarteraGuardada(
+            id=fila["id"],
+            usuario_id=fila["usuario_id"],
+            nombre=fila["nombre"],
+            posiciones=posiciones,
+            nivel_riesgo=fila["nivel_riesgo"],
+            horizonte_anios=fila["horizonte_anios"],
+            objetivo=fila["objetivo"],
+            fecha_creacion=fila["fecha_creacion"],
+            es_externa=fila["es_externa"],
+            pesos_objetivo=fila.get("pesos_objetivo")
+        )
+    
+    
+    def obtener(self, cartera_id: str) -> CarteraGuardada | None:
+        respuesta = (
+            self.cliente.table(self.tabla)
+            .select("*")
+            .eq("id", cartera_id)
+            .execute()
+            )
+        
+        if not respuesta.data:
+            return None
+        
+        return self._fila_a_cartera(respuesta.data[0])
+    
+    
+    def listar_por_usuario(self, usuario_id) -> list[CarteraGuardada]: 
+        respuesta = (
+            self.cliente.table(self.tabla)
+            .select("*")
+            .eq("usuario_id", usuario_id)
+            .order("fecha_creacion", desc=True)
+            .execute()
+        )
+        
+        return [self._fila_a_cartera(f) for f in respuesta.data]
+    
+
+    def eliminar(self, cartera_id: str) -> bool:
+        respuesta = (
+            self.cliente.table(self.tabla)
+            .delete()
+            .eq("id", cartera_id)
+            .execute()
+        )
+        
+        return len(respuesta.data) > 0

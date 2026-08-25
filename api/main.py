@@ -19,7 +19,7 @@ from agents.perfil import PerfilInversor
 from agents.perfilador import extraer_matices
 from universo.catalogo import metadatos
 from core.data import descargar_precios
-from persistencia.repositorio import RepositorioSQLite
+from persistencia.repositorio import RepositorioSupabase
 
 
 app = FastAPI(
@@ -184,7 +184,7 @@ def _guardar_cartera_automatica(perfil, resultado, capital, usuario_id, nombre):
         pesos_objetivo=dict(pesos)
     )
     
-    repo = RepositorioSQLite()
+    repo = RepositorioSupabase()
     cartera_id = repo.guardar(cartera)
     return cartera_id
     
