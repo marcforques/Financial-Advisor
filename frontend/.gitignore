@@ -22,3 +22,5 @@ yarn-error.log*
 # entorno local (la URL pública se configura en la plataforma de despliegue)
 .env.local
 .env.*.local
+
+.vercel
