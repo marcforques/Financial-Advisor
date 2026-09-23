@@ -1,0 +1,24 @@
+# dependencias
+/node_modules
+/.pnp
+.pnp.js
+
+# next.js
+/.next/
+/out/
+
+# producción
+/build
+
+# varios
+.DS_Store
+*.pem
+
+# depuración
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# entorno local (la URL pública se configura en la plataforma de despliegue)
+.env.local
+.env.*.local

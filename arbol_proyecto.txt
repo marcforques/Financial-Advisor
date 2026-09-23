@@ -1,0 +1,26 @@
+Árbol de carpetas del proyecto TFM (generado automáticamente, solo carpetas).
+Se excluyen entornos virtuales, dependencias instaladas y cachés:
+  .venv, node_modules, __pycache__, .pytest_cache, .next, .git,
+  .ipynb_checkpoints, .mypy_cache, .ruff_cache, dist, build,
+  *.dist-info, *.egg-info.
+TFM\
++---backend
+|   +---agents
+|   +---api
+|   +---core
+|   +---data
+|   +---evaluacion
+|   +---figuras
+|   +---notebook
+|   +---orquestador
+|   +---persistencia
+|   +---rag
+|   +---rebalanceo
+|   +---tests
+|   \---universo
+\---frontend
+    +---app
+    |   \---carteras
+    \---components
+
+

@@ -1,0 +1,16 @@
+# Dependencias necesarias para servir la API. Las herramientas de notebooks,
+# evaluación y desarrollo permanecen en requirements.txt.
+fastapi==0.136.3
+uvicorn[standard]==0.48.0
+email-validator==2.3.0
+python-dotenv==1.2.2
+openai==2.41.1
+supabase==2.31.0
+numpy==2.4.6
+pandas==3.0.0
+pyarrow==24.0.0
+scipy==1.17.1
+cvxpy==1.5.4
+PyPortfolioOpt==1.6.0
+yfinance==1.5.2
+langgraph==1.2.10
